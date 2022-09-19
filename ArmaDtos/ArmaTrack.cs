@@ -15,6 +15,8 @@ public class ArmaTrack
     public (double, double, double) Rotation { get; set; }
 
     public TrackAction Action { get; set; }
+
+    public string ArmaVariableName => $"_v{Id}";
 }
 
 public enum TrackAction

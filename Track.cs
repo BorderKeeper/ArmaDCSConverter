@@ -21,7 +21,7 @@ public class Track
             track.Time = int.Parse(data[0]);
             track.Id = int.Parse(data[1]);
 
-            track.Position = (double.Parse(data[5]), double.Parse(data[6]), double.Parse(data[7])); //TODO: Height might be wrong
+            track.Position = (double.Parse(data[5]), double.Parse(data[6]), FeetToMeters(double.Parse(data[7])));
 
             track.Heading = new Degree { Value = float.Parse(data[8]) };
         }
@@ -53,7 +53,10 @@ public class Track
     public (double, double, double) Position { get; set; }
 
     public Degree Heading { get; set; }
-
+    private static double FeetToMeters(double feet)
+    {
+        return feet / 3.2808399;
+    }
 }
 
 public class Degree

@@ -1,10 +1,8 @@
 ﻿using ArmaDCSConverter;
 using ArmaDCSConverter.ArmaDtos;
 using GeographicLib;
-using System.Diagnostics.Metrics;
 
 string fileName = "Export.log";
-TimeSpan offset = TimeSpan.Zero;
 
 FileStream fileStream = new FileStream(fileName, FileMode.Open);
 
@@ -16,39 +14,42 @@ var tracks = new List<Track>();
 
 while (!reader.EndOfStream)
 {
-
     var line = reader.ReadLine();
 
     if(line == null) tracks.Add(Track.InvalidTrack);
 
-    tracks.Add(Track.GetTrack(line));
+    var track = Track.GetTrack(line);
+
+    if(EntityShouldBeTracked(track))
+        tracks.Add(Track.GetTrack(line));
 }
 
 //Done processing got tracks list as outcome
 
-var trackedEntities = new Dictionary<int, Entity>();
-
+var trackedEntities = new Dictionary<int, ArmaTrack>();
 var armaTracks = new List<ArmaTrack>();
 
-var referencePoint = tracks.Where(EntityShouldBeTracked).First().Position;
-var origin = new LocalCartesian(referencePoint.Item1, referencePoint.Item2, FeetToMeters(referencePoint.Item3));
+tracks = tracks.Where(t => t.Time > 300).ToList(); //TODO: Remove
 
-foreach (Track track in tracks.Where(EntityShouldBeTracked))
+var firstTrack = tracks.First();
+var origin = new LocalCartesian(firstTrack.Position.Item1, firstTrack.Position.Item2, firstTrack.Position.Item3);
+
+double scale = 0.25;
+
+foreach (Track track in tracks)
 {
-    var cartesianPosition = origin.Forward(track.Position.Item1, track.Position.Item2, FeetToMeters(track.Position.Item3));
+    var cartesianPosition = origin.Forward(track.Position.Item1, track.Position.Item2, track.Position.Item3);
 
     if (!trackedEntities.ContainsKey(track.Id))
     {
-        armaTracks.Add(new ArmaTrack
+        trackedEntities.Add(track.Id, new ArmaTrack
         {
             Action = TrackAction.Spawn, 
             Id = track.Id, 
             Name = track.Name, 
-            Position = (cartesianPosition.x, cartesianPosition.y, cartesianPosition.z), 
-            Time = track.Time + offset.Seconds
+            Position = (cartesianPosition.x * scale, cartesianPosition.y * scale, cartesianPosition.z * scale), 
+            Time = track.Time - firstTrack.Time, //TODO: Remove is used to shift time origin to 0
         });
-
-        trackedEntities.Add(track.Id, new Entity { Id = track.Id, Name = track.Name });
     }
 
     var armaTrack = new ArmaTrack
@@ -56,28 +57,53 @@ foreach (Track track in tracks.Where(EntityShouldBeTracked))
         Action = TrackAction.Move, 
         Id = track.Id, 
         Name = track.Name, 
-        Position = (cartesianPosition.x, cartesianPosition.y, cartesianPosition.z), 
-        Time = track.Time + offset.Seconds
+        Position = (cartesianPosition.x * scale, cartesianPosition.y * scale, cartesianPosition.z * scale), 
+        Time = track.Time - firstTrack.Time //TODO: Remove is used to shift time origin to 0
     };
 
     armaTracks.Add(armaTrack);
-
-    Console.WriteLine($"{armaTrack.Name} - ({armaTrack.Position.Item1},{armaTrack.Position.Item2},{armaTrack.Position.Item3})");
 }
 
-Console.WriteLine("Done");
+//Got location tracks and list of things to spawn
+
+foreach (KeyValuePair<int, ArmaTrack> trackedEntity in trackedEntities)
+{
+    var vehicle = "B_Plane_Fighter_01_F";
+    if (trackedEntity.Value.Name.Contains("AIM_120")) vehicle = "O_HMG_01_high_F";
+    if (trackedEntity.Value.Name.Contains("AIM_9")) vehicle = "O_HMG_01_F";
+    if (trackedEntity.Value.Name.Contains("MiG-21Bis")) vehicle = "O_Plane_CAS_02_F";
+    if (trackedEntity.Value.Name.Contains("MIG-21_PILOT")) vehicle = "Land_GarbageBarrel_01_english_F";
+
+    Console.Write($" [] spawn {{ sleep {trackedEntity.Value.Time}; ");
+
+    Console.WriteLine($"{trackedEntity.Value.ArmaVariableName} = \"{vehicle}\" createVehicle [{trackedEntity.Value.Position.Item1},{trackedEntity.Value.Position.Item2},{trackedEntity.Value.Position.Item3}];");
+
+    ConstructRecording(trackedEntity.Value);
+
+    Console.Write(" }; ");
+}
+
+void ConstructRecording(ArmaTrack trackedEntity)
+{
+    var objectTracks = armaTracks.Where(track => track.Id == trackedEntity.Id);
+
+    var objectDeletion = objectTracks.Last().Time;
+
+    var armaValidTrack = objectTracks.Select(t =>
+        $"[{t.Time - trackedEntity.Time},[{t.Position.Item1},{t.Position.Item2},{t.Position.Item3 + 1000}],[0,0,0],[0,0,1],[0,0,0]]"); //TODO: Offset height for debugging
+        //TODO: I offset this time here as well as this is delta between mission start (original 0) and when the thing got created
+
+    var trackData = $"[{string.Join(",\n", armaValidTrack)}]";
+
+    Console.WriteLine($"[{trackedEntity.ArmaVariableName}, {trackData}] spawn BIS_fnc_unitPlay; sleep {objectDeletion - trackedEntity.Time}; deleteVehicle {trackedEntity.ArmaVariableName};");
+}
 
 bool EntityShouldBeTracked(Track track)
 {
     //TODO: Testing
-    return track.Name.Contains("FA-18C_hornet")/* ||
+    return track.Name.Contains("FA-18C_hornet") ||
            track.Name.Contains("AIM_120") ||
            track.Name.Contains("AIM_9") ||
            track.Name.Contains("MIG-21_PILOT") ||
-           track.Name.Contains("MiG-21Bis")*/;
-}
-
-double FeetToMeters(double feet)
-{
-    return feet / 3.2808399;
+           track.Name.Contains("MiG-21Bis");
 }
