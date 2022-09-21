@@ -1,8 +1,11 @@
-﻿using ArmaDCSConverter;
+﻿using System.Text;
+using ArmaDCSConverter;
 using ArmaDCSConverter.ArmaDtos;
 using GeographicLib;
 
 string fileName = "Export.log";
+
+StringBuilder result = new StringBuilder();
 
 FileStream fileStream = new FileStream(fileName, FileMode.Open);
 
@@ -34,7 +37,7 @@ tracks = tracks.Where(t => t.Time > 300).ToList(); //TODO: Remove
 var firstTrack = tracks.First();
 var origin = new LocalCartesian(firstTrack.Position.Item1, firstTrack.Position.Item2, firstTrack.Position.Item3);
 
-double scale = 0.25;
+double scale = 0.25; //TODO: Scale should be 1
 
 foreach (Track track in tracks)
 {
@@ -57,6 +60,7 @@ foreach (Track track in tracks)
         Action = TrackAction.Move, 
         Id = track.Id, 
         Name = track.Name, 
+        Rotation = (Math.Sin(track.Heading.Value), Math.Cos(track.Heading.Value), 0), //TODO: I only have heading so I will have to calculate yaw by height vector diff
         Position = (cartesianPosition.x * scale, cartesianPosition.y * scale, cartesianPosition.z * scale), 
         Time = track.Time - firstTrack.Time //TODO: Remove is used to shift time origin to 0
     };
@@ -74,14 +78,19 @@ foreach (KeyValuePair<int, ArmaTrack> trackedEntity in trackedEntities)
     if (trackedEntity.Value.Name.Contains("MiG-21Bis")) vehicle = "O_Plane_CAS_02_F";
     if (trackedEntity.Value.Name.Contains("MIG-21_PILOT")) vehicle = "Land_GarbageBarrel_01_english_F";
 
-    Console.Write($" [] spawn {{ sleep {trackedEntity.Value.Time}; ");
+    result.Append($" [] spawn {{ sleep {trackedEntity.Value.Time}; ");
 
-    Console.WriteLine($"{trackedEntity.Value.ArmaVariableName} = \"{vehicle}\" createVehicle [{trackedEntity.Value.Position.Item1},{trackedEntity.Value.Position.Item2},{trackedEntity.Value.Position.Item3}];");
+    result.AppendLine($"{trackedEntity.Value.ArmaVariableName} = \"{vehicle}\" createVehicle [{trackedEntity.Value.Position.Item1},{trackedEntity.Value.Position.Item2},{trackedEntity.Value.Position.Item3}];");
+    //result.AppendLine($"{trackedEntity.Value.ArmaVariableName} enableSimulationGlobal false;");
 
     ConstructRecording(trackedEntity.Value);
 
-    Console.Write(" }; ");
+    result.Append(" }; ");
 }
+
+Console.WriteLine(result.ToString());
+
+//DONE
 
 void ConstructRecording(ArmaTrack trackedEntity)
 {
@@ -90,12 +99,12 @@ void ConstructRecording(ArmaTrack trackedEntity)
     var objectDeletion = objectTracks.Last().Time;
 
     var armaValidTrack = objectTracks.Select(t =>
-        $"[{t.Time - trackedEntity.Time},[{t.Position.Item1},{t.Position.Item2},{t.Position.Item3 + 1000}],[0,0,0],[0,0,1],[0,0,0]]"); //TODO: Offset height for debugging
+        $"[{t.Time - trackedEntity.Time},[{t.Position.Item1 + 1000},{t.Position.Item2 + 1000},{t.Position.Item3 + 1000}],[{t.Rotation.Item1},{t.Rotation.Item2},{t.Rotation.Item3}],[0,0,1],[0,0,0]]"); //TODO: Offset height for debugging
         //TODO: I offset this time here as well as this is delta between mission start (original 0) and when the thing got created
 
     var trackData = $"[{string.Join(",\n", armaValidTrack)}]";
 
-    Console.WriteLine($"[{trackedEntity.ArmaVariableName}, {trackData}] spawn BIS_fnc_unitPlay; sleep {objectDeletion - trackedEntity.Time}; deleteVehicle {trackedEntity.ArmaVariableName};");
+    result.AppendLine($"[{trackedEntity.ArmaVariableName}, {trackData}] spawn BIS_fnc_unitPlay; sleep {objectDeletion - trackedEntity.Time}; deleteVehicle {trackedEntity.ArmaVariableName};");
 }
 
 bool EntityShouldBeTracked(Track track)
