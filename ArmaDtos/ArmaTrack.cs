@@ -1,6 +1,4 @@
-﻿using GeographicLib;
-
-namespace ArmaDCSConverter.ArmaDtos;
+﻿namespace ArmaDCSConverter.ArmaDtos;
 
 public class ArmaTrack
 {
@@ -10,9 +8,9 @@ public class ArmaTrack
 
     public double Time { get; set; }
 
-    public (double, double, double) Position { get; set; }
+    public Position Position { get; set; } = new();
 
-    public (double, double, double) Rotation { get; set; }
+    public Rotation Rotation { get; set; } = new();
 
     public TrackAction Action { get; set; }
 
