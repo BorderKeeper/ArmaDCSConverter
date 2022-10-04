@@ -14,7 +14,9 @@ public class TrackProvider
         {
             var line = reader.ReadLine();
 
-            tracks.Add(line == null ? Track.InvalidTrack : Track.GetTrack(line));
+            var track = line == null ? Track.InvalidTrack : Track.GetTrack(line);
+
+            tracks.Add(track);
         }
 
         return tracks;

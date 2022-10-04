@@ -1,18 +1,18 @@
-﻿using GeographicLib;
+﻿using ArmaDCSConverter.ArmaDtos;
 
 namespace ArmaDCSConverter;
 
 public class Track
 {
-    public static readonly Track InvalidTrack = new Track { Id = -1, Name = "Invalid Track" };
+    public static readonly Track InvalidTrack = new() { Id = -1, Name = "Invalid Track" };
 
-    private Track() {}
+    private Track() { }
 
     public static Track GetTrack(string rawLine)
     {
         var data = rawLine.Split('|');
 
-        if (data.Length != 9) return InvalidTrack;
+        if (data.Length != 11) return InvalidTrack;
 
         var track = new Track();
 
@@ -21,11 +21,13 @@ public class Track
             track.Time = int.Parse(data[0]);
             track.Id = int.Parse(data[1]);
 
-            track.Position = (double.Parse(data[5]), double.Parse(data[6]), FeetToMeters(double.Parse(data[7])));
+            track.Position = new Position { X = double.Parse(data[5]), Y = double.Parse(data[6]), Z = double.Parse(data[7]) };
 
             track.Heading = new Degree { Value = float.Parse(data[8]) };
+            track.Pitch = new Degree { Value = float.Parse(data[9]) };
+            track.Bank = new Degree { Value = float.Parse(data[10]) };
         }
-        catch(Exception)
+        catch (Exception)
         {
             return InvalidTrack;
         }
@@ -50,13 +52,19 @@ public class Track
 
     public string Faction { get; set; }
 
-    public (double, double, double) Position { get; set; }
+    public Position Position { get; set; }
 
+    /// <summary>
+    /// Yaw
+    /// </summary>
     public Degree Heading { get; set; }
-    private static double FeetToMeters(double feet)
-    {
-        return feet / 3.2808399;
-    }
+
+    public Degree Pitch { get; set; }
+
+    /// <summary>
+    /// Roll
+    /// </summary>
+    public Degree Bank { get; set; }
 }
 
 public class Degree

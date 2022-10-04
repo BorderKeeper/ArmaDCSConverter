@@ -7,7 +7,7 @@ public class SqfBuilder
 {
     private const int XOffset = -7000;
     private const int YOffset = 10000;
-    private const int HeightOffset = 2500;
+    private const int ZOffset = 2500;
 
     public string ConvertToSqfCode(ProcessedTracks processedTracks)
     {
@@ -36,7 +36,7 @@ public class SqfBuilder
         if (trackedEntity.Value.Name.Contains("MIG-21_PILOT")) vehicle = "Land_GarbageBarrel_01_english_F";
 
         result.AppendLine(
-            $"{trackedEntity.Value.ArmaVariableName} = \"{vehicle}\" createVehicle [{trackedEntity.Value.Position.X},{trackedEntity.Value.Position.Y},{trackedEntity.Value.Position.Height}];");
+            $"{trackedEntity.Value.ArmaVariableName} = \"{vehicle}\" createVehicle [{trackedEntity.Value.Position.X},{trackedEntity.Value.Position.Y},{trackedEntity.Value.Position.Z}];");
 
         if (vehicle.Equals("B_Plane_Fighter_01_F") || vehicle.Equals("O_Plane_CAS_02_F"))
         {
@@ -53,11 +53,11 @@ public class SqfBuilder
         var objectDeletion = objectTracks.Last().Time;
 
         var armaValidTrack = objectTracks.Select(t =>
-            $"[{t.Time - trackedEntity.Time},[{t.Position.X + XOffset},{t.Position.Y + YOffset},{t.Position.Height + HeightOffset}],[{t.Rotation.X},{t.Rotation.Y},{t.Rotation.Z}],[0,0,1],[0,0,0]]"); //TODO: Offset height for debugging
+            $"[{t.Time - trackedEntity.Time},[{t.Position.X + XOffset:F},{t.Position.Y + YOffset:F},{t.Position.Z + ZOffset:F}],[{t.DirectionVector.X:F},{t.DirectionVector.Z:F},{t.DirectionVector.Y:F}],[{t.UpVector.X:F},{t.UpVector.Y:F},{t.UpVector.Z:F}],[{t.Speed.X:F},{t.Speed.Y:F},{t.Speed.Z:F}]]"); //TODO: Offset height for debugging
         //TODO: I offset this time here as well as this is delta between mission start (original 0) and when the thing got created
 
         var trackData = $"[{string.Join(",\n", armaValidTrack)}]";
 
-        result.AppendLine($"[{trackedEntity.ArmaVariableName}, {trackData}] spawn BIS_fnc_unitPlay; sleep {objectDeletion - trackedEntity.Time}; deleteVehicle {trackedEntity.ArmaVariableName};");
+        result.AppendLine($"[{trackedEntity.ArmaVariableName}, {trackData}] spawn BIS_fnc_unitPlay; sleep {objectDeletion - trackedEntity.Time}; {{ {trackedEntity.ArmaVariableName} deleteVehicleCrew _x }} forEach crew {trackedEntity.ArmaVariableName}; deleteVehicle {trackedEntity.ArmaVariableName};");
     }
 }

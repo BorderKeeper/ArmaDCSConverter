@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace ArmaDCSConverter;
+﻿namespace ArmaDCSConverter;
 
 public class Converter
 {
@@ -21,9 +19,9 @@ public class Converter
     {
         var rawTracks = _trackProvider.GetTracks(FileName);
 
-        rawTracks = rawTracks.Where(EntityShouldBeTracked);
+        var filteredTracks = rawTracks.Where(EntityShouldBeTracked);
 
-        var processedTracks = _armaTracksConverter.Process(rawTracks);
+        var processedTracks = _armaTracksConverter.Process(filteredTracks);
 
         var sqfCode = _sqfBuilder.ConvertToSqfCode(processedTracks);
 

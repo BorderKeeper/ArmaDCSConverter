@@ -10,7 +10,11 @@ public class ArmaTrack
 
     public Position Position { get; set; } = new();
 
-    public Rotation Rotation { get; set; } = new();
+    public Vector DirectionVector { get; set; } = new();
+
+    public Vector UpVector { get; set; } = new();
+
+    public Vector Speed { get; set; } = new();
 
     public TrackAction Action { get; set; }
 
